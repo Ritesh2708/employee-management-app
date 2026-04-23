@@ -13,8 +13,12 @@ function validateEmployee(payload) {
   const requiredFields = ['name', 'email', 'department', 'role', 'hireDate'];
 
   for (const field of requiredFields) {
+    if (payload[field] === undefined) {
+      throw new HttpError(400, `Missing required field: ${field}`);
+    }
+
     if (typeof payload[field] !== 'string' || payload[field].trim() === '') {
-      throw new HttpError(400, `Invalid or missing field: ${field}`);
+      throw new HttpError(400, `Field must be a non-empty string: ${field}`);
     }
   }
 
