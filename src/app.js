@@ -18,13 +18,17 @@ function validateEmployee(payload) {
     }
   }
 
-  const atIndex = payload.email.indexOf('@');
-  const dotIndex = payload.email.lastIndexOf('.');
+  const email = payload.email.trim();
+  const atIndex = email.indexOf('@');
+  const lastAtIndex = email.lastIndexOf('@');
+  const domain = atIndex > -1 ? email.slice(atIndex + 1) : '';
+  const domainParts = domain.split('.');
   if (
     atIndex <= 0
-    || dotIndex <= atIndex + 1
-    || dotIndex === payload.email.length - 1
-    || payload.email.includes(' ')
+    || atIndex !== lastAtIndex
+    || email.includes(' ')
+    || domainParts.length < 2
+    || domainParts.some((part) => part.trim() === '')
   ) {
     throw new HttpError(400, 'Invalid email format');
   }
@@ -35,7 +39,7 @@ function validateEmployee(payload) {
 
   return {
     name: payload.name.trim(),
-    email: payload.email.trim().toLowerCase(),
+    email: email.toLowerCase(),
     department: payload.department.trim(),
     role: payload.role.trim(),
     hireDate: payload.hireDate.trim(),

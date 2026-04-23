@@ -81,7 +81,7 @@
     <script src="/vendor/babel/babel.min.js"></script>
 
     <script type="text/babel">
-      const { useEffect, useMemo, useState } = React;
+      const { useCallback, useEffect, useMemo, useState } = React;
 
       const emptyForm = {
         name: '',
@@ -105,7 +105,7 @@
           [employees]
         );
 
-        async function fetchEmployees() {
+        const fetchEmployees = useCallback(async () => {
           const params = new URLSearchParams();
           if (departmentFilter) {
             params.set('department', departmentFilter);
@@ -120,11 +120,11 @@
           }
           const data = await response.json();
           setEmployees(data);
-        }
+        }, [departmentFilter, search]);
 
         useEffect(() => {
           fetchEmployees().catch((fetchError) => setError(fetchError.message));
-        }, [departmentFilter, search]);
+        }, [fetchEmployees]);
 
         async function submitForm(event) {
           event.preventDefault();
