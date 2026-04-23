@@ -18,8 +18,14 @@ function validateEmployee(payload) {
     }
   }
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailPattern.test(payload.email)) {
+  const atIndex = payload.email.indexOf('@');
+  const dotIndex = payload.email.lastIndexOf('.');
+  if (
+    atIndex <= 0
+    || dotIndex <= atIndex + 1
+    || dotIndex === payload.email.length - 1
+    || payload.email.includes(' ')
+  ) {
     throw new HttpError(400, 'Invalid email format');
   }
 
@@ -162,10 +168,6 @@ function createApp(options = {}) {
   app.use('/vendor/babel', express.static(path.join(process.cwd(), 'node_modules', '@babel', 'standalone')));
 
   app.use(express.static(path.join(process.cwd(), 'public')));
-
-  app.get('/', (_req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
-  });
 
   app.use((error, _req, res, _next) => {
     if (error && error.code === 'SQLITE_CONSTRAINT') {
