@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Management System</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f5f7fb;
+        color: #222;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+      }
+      form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        align-items: end;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        font-size: 14px;
+        gap: 6px;
+      }
+      input,
+      select,
+      button {
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 8px;
+        font-size: 14px;
+      }
+      button {
+        cursor: pointer;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #eee;
+        padding: 10px 8px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .error {
+        color: #b30000;
+        margin-bottom: 10px;
+      }
+      .status {
+        color: #0a5;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script src="/vendor/react/react.development.js"></script>
+    <script src="/vendor/react-dom/react-dom.development.js"></script>
+    <script src="/vendor/babel/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useState } = React;
+
+      const emptyForm = {
+        name: '',
+        email: '',
+        department: '',
+        role: '',
+        hireDate: '',
+      };
+
+      function App() {
+        const [employees, setEmployees] = useState([]);
+        const [form, setForm] = useState(emptyForm);
+        const [editingId, setEditingId] = useState(null);
+        const [departmentFilter, setDepartmentFilter] = useState('');
+        const [search, setSearch] = useState('');
+        const [error, setError] = useState('');
+        const [status, setStatus] = useState('');
+
+        const departments = useMemo(
+          () => Array.from(new Set(employees.map((employee) => employee.department))).sort(),
+          [employees]
+        );
+
+        async function fetchEmployees() {
+          const params = new URLSearchParams();
+          if (departmentFilter) {
+            params.set('department', departmentFilter);
+          }
+          if (search.trim()) {
+            params.set('search', search.trim());
+          }
+
+          const response = await fetch(`/api/employees?${params.toString()}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch employees');
+          }
+          const data = await response.json();
+          setEmployees(data);
+        }
+
+        useEffect(() => {
+          fetchEmployees().catch((fetchError) => setError(fetchError.message));
+        }, [departmentFilter, search]);
+
+        async function submitForm(event) {
+          event.preventDefault();
+          setError('');
+          setStatus('');
+
+          const method = editingId ? 'PUT' : 'POST';
+          const url = editingId ? `/api/employees/${editingId}` : '/api/employees';
+
+          const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          });
+
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || 'Request failed');
+          }
+
+          setForm(emptyForm);
+          setEditingId(null);
+          setStatus(editingId ? 'Employee updated' : 'Employee created');
+          await fetchEmployees();
+        }
+
+        async function removeEmployee(id) {
+          setError('');
+          setStatus('');
+
+          const response = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || 'Failed to delete employee');
+          }
+
+          setStatus('Employee deleted');
+          if (editingId === id) {
+            setEditingId(null);
+            setForm(emptyForm);
+          }
+          await fetchEmployees();
+        }
+
+        function startEdit(employee) {
+          setEditingId(employee.id);
+          setForm({
+            name: employee.name,
+            email: employee.email,
+            department: employee.department,
+            role: employee.role,
+            hireDate: employee.hireDate,
+          });
+          setError('');
+          setStatus('');
+        }
+
+        function resetForm() {
+          setEditingId(null);
+          setForm(emptyForm);
+          setError('');
+          setStatus('');
+        }
+
+        return (
+          <div className="container">
+            <h1>Employee Management System</h1>
+
+            <div className="card">
+              <h2>{editingId ? `Edit Employee #${editingId}` : 'Create Employee'}</h2>
+              {error && <div className="error">{error}</div>}
+              {status && <div className="status">{status}</div>}
+              <form
+                onSubmit={(event) => {
+                  submitForm(event).catch((submitError) => setError(submitError.message));
+                }}
+              >
+                <label>
+                  Name
+                  <input
+                    value={form.name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Department
+                  <input
+                    value={form.department}
+                    onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Role
+                  <input
+                    value={form.role}
+                    onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Hire Date
+                  <input
+                    type="date"
+                    value={form.hireDate}
+                    onChange={(event) => setForm((prev) => ({ ...prev, hireDate: event.target.value }))}
+                    required
+                  />
+                </label>
+                <button type="submit">{editingId ? 'Save Changes' : 'Add Employee'}</button>
+                {editingId && (
+                  <button type="button" onClick={resetForm}>
+                    Cancel
+                  </button>
+                )}
+              </form>
+            </div>
+
+            <div className="card">
+              <h2>Employees</h2>
+              <form onSubmit={(event) => event.preventDefault()}>
+                <label>
+                  Search
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or role" />
+                </label>
+                <label>
+                  Department filter
+                  <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+                    <option value="">All departments</option>
+                    {departments.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </form>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th>Hire Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.length === 0 ? (
+                    <tr>
+                      <td colSpan="7">No employees found.</td>
+                    </tr>
+                  ) : (
+                    employees.map((employee) => (
+                      <tr key={employee.id}>
+                        <td>{employee.id}</td>
+                        <td>{employee.name}</td>
+                        <td>{employee.email}</td>
+                        <td>{employee.department}</td>
+                        <td>{employee.role}</td>
+                        <td>{employee.hireDate}</td>
+                        <td className="actions">
+                          <button type="button" onClick={() => startEdit(employee)}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeEmployee(employee.id).catch((removeError) => setError(removeError.message));
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+  </body>
+</html>
